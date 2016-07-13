@@ -1,0 +1,48 @@
+{
+    "handler": {
+        "type": "Chain",
+        "timer": true,
+        "config": {
+            "filters": [{
+                "name": "string",
+                "type": "TokenTransformationFilter",
+                "config": {
+                    "openamUri": "http://iam.forgerockdemo.com/openam/",
+                    "realm": "/",
+                    "username": "forgerock",
+                    "password": "ForgeRock-2010",
+                    "idToken": "${request.headers['x-header-oidc-token'][0]}",
+                    "target": "${session.saml}",
+                    "instance": "tokens4simple",
+		    "amHandler": "ClientHandler"
+                }
+            }],
+            "handler": {
+                "type": "Chain",
+                "timer": true,
+		"name": "STSChain",
+                "config": {
+                    "filters": [{
+                        "name": "SetCustomHeaders",
+                        "type": "HeaderFilter",
+                        "config": {
+                            "messageType": "REQUEST",
+                            "add": {
+                                "X-Header-OIDC-Token": ["${session.openid.id_token}"],
+                                "X-Header-SAML-Token": ["${encodeBase64(session.saml)}"],
+                                "X-Header-Username": ["${session.openid.user_info.sub}"]
+                            }
+                        }
+                    }],
+					"handler": "ClientHandler" 
+}
+					}
+        }
+
+    },
+    "condition": "${matches(request.uri.path, '^/simplews')}",
+    "baseURI": "http://127.0.0.1:18080",
+    "timer": true
+}
+}
+}

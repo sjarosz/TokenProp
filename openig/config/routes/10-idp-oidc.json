@@ -1,0 +1,46 @@
+{
+    "handler": {
+        "type": "Chain",
+        "timer": true,
+        "config": {
+            "filters": [{
+                    "type": "OAuth2ClientFilter",
+                    "config": {
+                        "clientEndpoint": "/simpleclient",
+                        "requireHttps": false,
+                        "requireLogin": true,
+                        "target": "${session.openid}",
+                        "failureHandler": {
+                            "type": "StaticResponseHandler",
+                            "config": {
+                                "comment": "Trivial failure handler for debugging only",
+                                "status": 500,
+                                "reason": "Error",
+                                "entity": "${attributes.openid}"
+                            }
+                        },
+                        "registration": "OidcRelyingParty"
+                    }
+                }, {
+                    "name": "SetCustomHeaders",
+                    "type": "HeaderFilter",
+                    "config": {
+                        "messageType": "REQUEST",
+                        "add": {
+                            "X-Header-AUTHZ": ["${session.openid.access_token}"],
+                            "X-Header-OIDC-Token": ["${session.openid.id_token}"],
+                            "X-Header-Username": ["${session.openid.user_info.sub}"]
+                        }
+                    }
+                }
+
+            ],
+            "handler": "ClientHandler"
+
+        }
+
+    },
+    "condition": "${matches(request.uri.path, '^/simpleclient')}",
+    "baseURI": "http://127.0.0.1:18080",
+    "timer": true
+}

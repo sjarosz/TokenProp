@@ -1,0 +1,126 @@
+{
+	"handler": {
+		"type": "Router",
+		"audit": "global",
+		"baseURI": "http://iam.forgerockdemo.com:38080",
+		"capture": "all"
+	},
+	"heap": [{
+			"comment": "To reuse issuers, configure them in the parent route",
+			"name": "openam",
+			"type": "Issuer",
+			"timer": true,
+			"config": {
+				"wellKnownEndpoint": "http://iam.forgerockdemo.com/openam/oauth2/.well-known/openid-configuration"
+			}
+		}, {
+			"comment": "To reuse client registrations, configure them in the parent route",
+			"name": "OidcRelyingParty",
+			"type": "ClientRegistration",
+			"timer": true,
+			"config": {
+				"clientId": "MyClientID",
+				"clientSecret": "password",
+				"issuer": "openam",
+				"redirect_uris": [
+					"http://iam.forgerockdemo.com/headers"
+				],
+				"scopes": [
+					"openid",
+					"profile"
+				]
+			}
+		}, {
+			"name": "401Handler",
+			"type": "StaticResponseHandler",
+			"config": {
+				"status": 200,
+				"reason": "OK",
+				"entity": "{accessToken: ${session.openid.access_token}\n saml: ${encodeBase64(session.saml)}\n IDTOKEN: ${session.openid.id_token}\n ${session.openid.token_type}\n Claims: ${session.openid.id_token_claims} \n ${attributes.openid.user_info.sub}\n\n session: ${session}}\n\n"
+			}
+		},
+		{
+			"name": "DENY",
+			"type": "StaticResponseHandler",
+			"config": {
+				"status": 403,
+				"reason": "ERROR",
+				"entity": "<html> < h2 > 403 Access Denied < /h2> < /html>"
+			}
+		}, {
+			"name": "TRUE",
+			"type": "StaticResponseHandler",
+			"config": {
+				"status": 200,
+				"reason": "OK",
+				"entity": "<html> < h2 > TRUE < /h2> < /html>"
+			}
+		}, {
+			"name": "FALSE",
+			"type": "StaticResponseHandler",
+			"config": {
+				"status": 500,
+				"reason": "Error",
+				"entity": "<html> < h2 > FALSE < /h2> < /html>"
+			}
+		}, {
+			"name": "LogSink",
+			"type": "ConsoleLogSink",
+			"config": {
+				"level": "DEBUG"
+			}
+		}, {
+			"name": "JwtSession",
+			"type": "JwtSession"
+		}, {
+			"name": "DefaultClientHandler",
+			"type": "ClientHandler"
+		}, {
+			"name": "AccessRequest",
+			"type": "Chain",
+			"comment": "Triggered from route/10-glitch.json when there is an indication that 403 occured because of absence of group membership on OpenAM policy",
+			"config": {
+				"filters": [
+					"AccessRequestMsgFilter"
+				],
+
+
+
+				"handler": {
+					"type": "DispatchHandler",
+					"config": {
+						"bindings": [{
+							"baseURI": "http://127.0.0.1:18080",
+							"handler": "ClientHandler"
+						}]
+					}
+				}
+			}
+		}, {
+			"name": "AccessRequestMsgFilter",
+			"type": "HeaderFilter",
+			"config": {
+				"messageType": "REQUEST",
+				"add": {
+					"errorTitle": [
+						"Request Access"
+					],
+					"errorMsg": [
+						"You currently are not allowed access to this applicaiton, please click to request access"
+					],
+					"errorURL": [
+						"${exchange.session.returnLink}"
+					]
+				}
+			}
+		}, {
+			"name": "capture",
+			"type": "CaptureDecorator",
+			"config": {
+				"captureEntity": true,
+				"_captureExchange": true
+			}
+		}
+	],
+	"baseURI": "http://127.0.0.1:38080"
+}

@@ -1,0 +1,36 @@
+@startuml
+
+title Browser App to REST Service token propagation
+
+participant User
+participant OpenAM
+participant "Browser App" as app
+participant OpenIG
+participant "REST Service" as rest
+
+User->app: Inital Page Load
+app->OpenAM: /oauth2/authorize[scope=oidc]
+alt user not yet logged in
+   OpenAM->OpenAM: redirect to authentication chain
+   OpenAM->User: Display login UI
+   User->OpenAM: Login
+end
+alt user not yet granted consent
+  OpenAM->User: prompt user for consent
+  User->OpenAM: send consent or cancel process
+end
+
+OpenAM->app: JWT response
+app->app: inspect tokens+cliams
+app->OpenIG: Invoke REST Service
+OpenIG->OpenAM: STS Request session token->SAML conversation
+
+note over OpenIG: various token types possible
+
+OpenAM->OpenIG: token response
+OpenIG->rest: Propagate JWT and/or SAML
+rest->rest: inspect tokens+claims
+rest->OpenIG: WS response
+OpenIG->app: WS response
+
+@enduml
